@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>正在建立身份绑定 · 桂教通统一身份认证</title>
+<style>
+  :root{
+    --green:#00b89e;
+    --green-d:#009e89;
+    --blue:#2c8fec;
+    --ink-900:#1b2a42;
+    --ink-700:#42536e;
+    --ink-500:#7a8ba3;
+    --ink-300:#a7b4c6;
+    --line:#e8edf4;
+    --red:#e8453c;
+    --ease:cubic-bezier(.16,1,.3,1);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  [hidden]{display:none!important;}
+  html,body{height:100%;}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,sans-serif;
+    color:var(--ink-900);-webkit-font-smoothing:antialiased;overflow:hidden;
+    background:
+      radial-gradient(900px 520px at 16% -14%,rgba(0,184,158,.07) 0%,transparent 60%),
+      radial-gradient(820px 480px at 88% 4%,rgba(44,143,236,.06) 0%,transparent 58%),
+      linear-gradient(180deg,#f8fafd 0%,#eef2f8 100%);
+  }
+  a{text-decoration:none;color:inherit;}
+  button{font-family:inherit;border:0;background:none;cursor:pointer;color:inherit;}
+
+  /* ---------------- 顶部品牌 ---------------- */
+  .topbar{
+    position:fixed;left:28px;top:24px;z-index:5;display:flex;align-items:center;gap:10px;
+  }
+  .logo{display:flex;align-items:center;gap:13px;}
+  .logo-img{display:block;height:28px;width:auto;}
+  .logo .mark{
+    width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:#fff;font-weight:800;font-size:14px;
+    background:linear-gradient(135deg,#00c9a7,#0f8fc4);box-shadow:0 6px 14px rgba(0,184,158,.26);
+  }
+  .logo b{font-size:15px;letter-spacing:.4px;}
+  .logo span{font-size:11.5px;color:var(--ink-500);padding-left:10px;border-left:1px solid var(--line);margin-left:2px;}
+  .top-right{
+    position:fixed;right:28px;top:28px;z-index:5;font-size:12.5px;color:var(--ink-500);display:flex;gap:18px;
+  }
+  .top-right a:hover{color:var(--green-d);}
+
+  /* ---------------- 居中主体 ---------------- */
+  .stage{
+    position:relative;z-index:2;height:100%;display:flex;align-items:center;justify-content:center;padding:24px;
+  }
+  .panel{
+    width:556px;max-width:100%;background:#fff;border-radius:18px;padding:34px 36px 26px;
+    border:1px solid #e6ebf3;
+    box-shadow:0 1px 3px rgba(17,32,60,.05),0 28px 60px -22px rgba(17,32,60,.22);
+    animation:rise .4s cubic-bezier(.16,1,.3,1);
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* 身份 → 账号 绑定示意 */
+  .bindviz{display:flex;align-items:center;justify-content:center;gap:0;margin:2px 0 22px;}
+  /* 宽度锁成圆环直径，标签用 nowrap 溢出居中，避免左右留白把连接线扯断 */
+  .node{display:flex;flex-direction:column;align-items:center;gap:7px;width:64px;}
+  .node .lb,.node .sb{white-space:nowrap;}
+  .node .ring{
+    width:64px;height:64px;border-radius:50%;display:grid;place-items:center;position:relative;color:#fff;
+  }
+  .node .ring::after{
+    content:"";position:absolute;inset:-6px;border-radius:50%;border:1px solid rgba(0,184,158,.22);
+  }
+  .node.trust .ring{background:linear-gradient(135deg,#00c9a7,#00b89e);box-shadow:0 12px 26px rgba(0,184,158,.3);}
+  .node.trust .ring::after{border-color:rgba(0,184,158,.24);}
+  .node.portal .ring{background:linear-gradient(135deg,#2c8fec,#0f8fc4);box-shadow:0 12px 26px rgba(44,143,236,.28);}
+  .node.portal .ring::after{border-color:rgba(44,143,236,.2);}
+  .node .lb{font-size:12.5px;font-weight:700;color:var(--ink-700);letter-spacing:.2px;}
+  .node .sb{font-size:10.5px;color:var(--ink-300);margin-top:-3px;}
+
+  /* 连线：虚线底 + 渐变填充 + 游走光点 */
+  .link{position:relative;flex:none;width:118px;height:2px;align-self:flex-start;margin-top:31px;}
+  .link .rail{
+    position:absolute;inset:0;border-radius:2px;
+    background-image:linear-gradient(90deg,#cfdcee 0 6px,transparent 6px 12px);
+    background-size:12px 2px;background-repeat:repeat-x;opacity:.9;
+  }
+  .link .fill{
+    position:absolute;left:0;top:0;height:100%;width:0;border-radius:2px;
+    background:linear-gradient(90deg,#00c9a7,#2c8fec);
+    transition:width .5s cubic-bezier(.4,0,.2,1);
+  }
+  .link .pulse{
+    position:absolute;top:50%;left:0;width:7px;height:7px;border-radius:50%;transform:translate(-50%,-50%);
+    background:#fff;box-shadow:0 0 0 3px rgba(0,184,158,.35),0 0 12px rgba(0,184,158,.75);
+    opacity:0;transition:opacity .2s;
+  }
+  .link.run .pulse{opacity:1;animation:run 1.15s linear infinite;}
+  @keyframes run{from{left:0}to{left:100%}}
+  .link.done .pulse{opacity:0;}
+  .link .okdot{
+    position:absolute;left:50%;top:50%;width:22px;height:22px;border-radius:50%;transform:translate(-50%,-50%) scale(.4);
+    background:#fff;display:grid;place-items:center;color:var(--green);opacity:0;transition:.3s cubic-bezier(.34,1.56,.64,1);
+    box-shadow:0 2px 8px rgba(18,45,110,.14);
+  }
+  .link.done .okdot{opacity:1;transform:translate(-50%,-50%) scale(1);}
+
+  /* 标题区 */
+  .head{text-align:center;}
+  .head h1{font-size:21px;font-weight:800;letter-spacing:.6px;}
+  .head p{margin-top:7px;font-size:12.5px;color:var(--ink-500);line-height:1.65;}
+  .head p b{color:var(--green-d);font-weight:700;}
+
+  /* 进度 */
+  .prog{margin:22px 0 4px;}
+  .prog .bar{height:5px;border-radius:3px;background:#eef3fa;overflow:hidden;}
+  .prog .bar i{
+    display:block;height:100%;width:0;border-radius:3px;
+    background:linear-gradient(90deg,#00c9a7,#2c8fec);
+    transition:width .5s cubic-bezier(.4,0,.2,1);
+  }
+  .prog .meta{display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:var(--ink-300);}
+  .prog .meta b{color:var(--ink-700);font-variant-numeric:tabular-nums;}
+
+  /* 步骤 */
+  .steps{list-style:none;margin:16px 0 2px;}
+  .steps li{display:flex;align-items:center;gap:12px;padding:11px 0;font-size:13.5px;color:var(--ink-300);transition:color .25s;
+    cursor:default;user-select:none;-webkit-user-select:none;}
+  .steps li *{cursor:default;}
+  .steps li+li{border-top:1px solid #f4f8fd;}
+  .steps li .dot{
+    width:24px;height:24px;border-radius:50%;flex:none;
+    display:grid;grid-template:1fr/1fr;place-items:center;overflow:hidden;
+    background:#f0f4fa;color:#b6c1d2;font-size:11.5px;font-weight:700;line-height:1;transition:.25s;position:relative;
+  }
+  /* 序号与对勾叠在同一格里，避免两者各占一行把圆圈撑变形 */
+  .steps li .dot>*{grid-area:1/1;place-self:center;line-height:1;}
+  .steps li .dot .no{display:block;}
+  .steps li .dot svg{display:none;width:13px;height:13px;}
+  .steps li.active{color:var(--ink-900);font-weight:600;}
+  .steps li.active .dot{background:rgba(0,184,158,.12);color:var(--green-d);}
+  .steps li.active .dot::after{
+    content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(0,184,158,.28);
+    animation:breath 1.4s ease-in-out infinite;
+  }
+  @keyframes breath{0%,100%{transform:scale(.94);opacity:.9}50%{transform:scale(1.12);opacity:.25}}
+  .steps li.done{color:var(--ink-700);}
+  .steps li.done .dot{background:var(--green);color:#fff;}
+  .steps li.done .dot .no{display:none;}
+  .steps li.done .dot svg{display:block;}
+  .steps li .st{flex:none;white-space:nowrap;}
+  .steps li .sx{margin-left:auto;padding-left:12px;flex:none;font-size:11.5px;color:var(--ink-300);font-weight:400;
+    white-space:nowrap;text-align:right;max-width:56%;overflow:hidden;text-overflow:ellipsis;}
+  .steps li.active .sx{color:var(--green-d);}
+  .steps li.done .sx{color:#9fb0c6;}
+
+  .foot{
+    margin-top:14px;padding-top:14px;border-top:1px solid #f0f4fa;
+    font-size:11.5px;color:var(--ink-500);line-height:1.65;display:flex;gap:8px;align-items:flex-start;
+  }
+  .foot svg{flex:none;width:13px;height:13px;margin-top:2px;color:#a9b6c9;}
+
+  /* ---------------- 选择绑定机构（首次绑定前） ---------------- */
+  .choose-view{display:none;}
+  /* 选择态：面板变成纵向 flex，列表占满剩余高度并独立滚动，机构再多也不撑破页面 */
+  .panel.choosing{
+    display:flex;flex-direction:column;
+    height:min(780px,calc(100vh - 96px));
+  }
+  .panel.choosing .choose-view{display:flex;flex-direction:column;min-height:0;flex:1;}
+  .panel.choosing .busy-view,
+  .panel.choosing .done-view{display:none;}
+
+  .verified{
+    display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 11px 0 8px;border-radius:13px;
+    font-size:11.5px;font-weight:600;color:#0a7d55;background:#eefaf5;border:1px solid #c4e9d9;margin:0 auto;
+  }
+  .verified svg{width:13px;height:13px;}
+  .choose-view .top{text-align:center;margin-bottom:12px;flex:none;}
+  .choose-view .head{flex:none;}
+
+  /* 搜索 */
+  .search{position:relative;display:flex;align-items:center;gap:8px;margin:16px 0 0;flex:none;
+    height:40px;padding:0 12px;border-radius:10px;background:#f7f9fc;border:1px solid #e8edf4;transition:all .2s var(--ease);}
+  .search:focus-within{background:#fff;border-color:#bfe2d8;box-shadow:0 0 0 3px rgba(0,184,158,.10);}
+  .search>svg{flex:none;width:15px;height:15px;color:var(--ink-300);}
+  .search input{flex:1;min-width:0;height:100%;border:0;background:transparent;font-size:12.5px;color:var(--ink-900);outline:none;
+    font-family:inherit;}
+  .search input::placeholder{color:var(--ink-300);}
+  .search .clr{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
+    background:#e5eaf2;color:#7d8ca3;transition:.16s;}
+  .search .clr:hover{background:#d8e0eb;color:var(--ink-700);}
+  .search .clr svg{width:10px;height:10px;}
+
+  .list-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 0;
+    font-size:11px;color:#6d7e96;flex:none;}
+  .list-meta .hint{color:#9dabbe;}
+
+  /* 列表外层：底部渐隐提示「还有更多」，滚到底自动消失 */
+  .list-wrap{position:relative;flex:1;min-height:96px;min-width:0;display:flex;}
+  .list-wrap::after{
+    content:"";position:absolute;left:0;right:6px;bottom:0;height:26px;pointer-events:none;
+    background:linear-gradient(180deg,rgba(255,255,255,0),#fff 72%);
+    opacity:1;transition:opacity .22s var(--ease);
+  }
+  .list-wrap.at-end::after{opacity:0;}
+
+  .org-list{display:flex;flex-direction:column;gap:8px;margin:9px 0 0;overflow:auto;flex:1;min-width:0;
+    scrollbar-width:thin;scrollbar-color:#d3dce9 transparent;padding-right:3px;}
+  .org-list::-webkit-scrollbar{width:6px;}
+  .org-list::-webkit-scrollbar-thumb{background:#d3dce9;border-radius:3px;}
+  .org-list::-webkit-scrollbar-thumb:hover{background:#b9c6d9;}
+  .org-item{
+    display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:10px 12px;border-radius:10px;
+    background:#fff;border:1.5px solid #e9eef5;transition:all .2s cubic-bezier(.16,1,.3,1);position:relative;flex:none;
+  }
+  .org-item:hover{border-color:#c8dcef;background:#fafcff;}
+  .org-item[aria-checked="true"]{border-color:var(--green);background:#f4fdfa;box-shadow:0 4px 14px rgba(0,184,158,.12);}
+  .org-item .rd{
+    flex:none;width:17px;height:17px;border-radius:50%;border:1.5px solid #cfdaea;background:#fff;
+    display:grid;place-items:center;transition:.18s;
+  }
+  .org-item .rd::after{
+    content:"";width:9px;height:9px;border-radius:50%;background:var(--green);transform:scale(0);transition:transform .22s cubic-bezier(.34,1.56,.64,1);
+  }
+  .org-item[aria-checked="true"] .rd{border-color:var(--green);}
+  .org-item[aria-checked="true"] .rd::after{transform:scale(1);}
+  .og-main{flex:1;min-width:0;}
+  .og-name{display:block;font-size:13.5px;font-weight:600;color:var(--ink-900);letter-spacing:.2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .og-sub{display:block;font-size:11px;color:var(--ink-300);margin-top:3px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  /* 无桂教通账号时的自动建档提示条 */
+  .newacc{
+    display:flex;align-items:flex-start;gap:9px;margin-top:14px;padding:10px 12px;border-radius:9px;
+    background:#f6f9ff;border:1px solid #dfe8f6;font-size:11.5px;color:var(--ink-500);line-height:1.7;
+    animation:fadeUp .34s var(--ease);
+  }
+  .newacc>svg{flex:none;width:14px;height:14px;margin-top:2px;color:#4a86c8;}
+  .newacc b{display:block;font-size:12px;color:var(--ink-900);font-weight:700;margin-bottom:2px;}
+  .newacc em{font-style:normal;color:#1a6fb5;font-weight:600;background:#eaf2fd;padding:1px 5px;border-radius:4px;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  /* 搜索无结果 */
+  .no-res{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    padding:34px 0;text-align:center;flex:1;min-height:150px;color:var(--ink-300);}
+  .no-res svg{width:30px;height:30px;margin-bottom:2px;opacity:.55;}
+  .no-res b{font-size:12.5px;color:var(--ink-500);font-weight:600;}
+  .no-res span{font-size:11px;}
+
+  /* 已选摘要条：紧贴按钮上沿，列表滚动时也始终可见 */
+  .pick-bar{display:flex;align-items:center;gap:8px;margin-top:14px;padding:9px 12px;border-radius:9px;
+    background:#f7f9fc;border:1px solid #e8edf4;font-size:11.5px;color:var(--ink-500);flex:none;transition:all .22s var(--ease);}
+  .pick-bar.on{background:#f2fdf9;border-color:#c9ebdf;}
+  .pick-bar .pk-ic{flex:none;width:16px;height:16px;display:grid;place-items:center;color:var(--ink-300);}
+  .pick-bar .pk-ic svg{width:14px;height:14px;grid-area:1/1;}
+  .pick-bar .pk-ic .i-done{display:none;}
+  .pick-bar.on .pk-ic{color:var(--green);}
+  .pick-bar.on .pk-ic .i-empty{display:none;}
+  .pick-bar.on .pk-ic .i-done{display:block;}
+  .pick-bar .pk-tx{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pick-bar.on .pk-tx{color:var(--ink-900);font-weight:600;}
+
+  .choose-acts{display:flex;gap:10px;margin-top:12px;flex:none;}
+  .btn-lite2{height:42px;border-radius:9px;flex:1;font-size:13.5px;font-weight:600;background:#f4f7fb;color:var(--ink-700);
+    border:1px solid #e8edf4;transition:all .2s var(--ease);}
+  .btn-lite2:hover{background:#eef3fa;color:var(--ink-900);}
+  .btn-go{
+    height:42px;border-radius:9px;flex:2;font-size:13.5px;font-weight:700;letter-spacing:.3px;color:#fff;
+    background:linear-gradient(140deg,#00c9a7,#00b89e);box-shadow:0 8px 20px -6px rgba(0,184,158,.5);transition:all .2s var(--ease);
+    display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  }
+  .btn-go:hover:not(:disabled){filter:brightness(1.04);}
+  .btn-go:active:not(:disabled){transform:scale(.99);}
+  .btn-go:disabled{opacity:1;cursor:not-allowed;box-shadow:none;background:#eaeef5;color:#a3b0c2;}
+  .choose-view .foot{flex:none;}
+
+  /* ---------------- 成功态 ---------------- */
+  .done-view{display:none;text-align:center;padding:10px 0 4px;}
+  .panel.ok .busy-view{display:none;}
+  .panel.ok .done-view{display:block;}
+  .ok-ring{
+    width:76px;height:76px;border-radius:50%;margin:6px auto 16px;display:grid;place-items:center;color:#fff;
+    background:linear-gradient(135deg,#00c9a7,#00b89e);box-shadow:0 16px 34px rgba(0,184,158,.34);
+    animation:pop .5s cubic-bezier(.34,1.56,.64,1);position:relative;
+  }
+  .ok-ring::after{
+    content:"";position:absolute;inset:-9px;border-radius:50%;border:2px solid rgba(0,184,158,.18);
+    animation:halo 2s ease-out infinite;
+  }
+  @keyframes halo{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.25);opacity:0}}
+  @keyframes pop{0%{transform:scale(.5);opacity:0}100%{transform:none;opacity:1}}
+  .done-view h2{font-size:20px;font-weight:800;letter-spacing:.5px;}
+  .done-view .desc{margin-top:9px;font-size:12.5px;color:var(--ink-500);line-height:1.75;}
+  .done-view .desc b{color:var(--ink-700);}
+  .enter{
+    margin-top:20px;display:inline-flex;align-items:center;gap:9px;height:40px;padding:0 20px;border-radius:8px;
+    font-size:13px;font-weight:600;color:#fff;background:linear-gradient(135deg,#00c9a7,#00b89e);
+    box-shadow:0 10px 22px rgba(0,184,158,.28);
+  }
+  .enter svg{width:15px;height:15px;}
+  .enter .dots::after{content:"";animation:dt 1.2s steps(4,end) infinite;}
+  @keyframes dt{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+  .will{margin-top:14px;font-size:11.5px;color:var(--ink-300);}
+  .will a{color:var(--green-d);font-weight:600;}
+
+  /* ---------------- 演示条 ---------------- */
+  .demo{
+    position:fixed;left:16px;bottom:16px;z-index:120;display:flex;align-items:center;gap:6px;
+    background:rgba(16,26,51,.88);backdrop-filter:blur(10px);padding:6px 8px;border-radius:11px;
+    box-shadow:0 10px 28px rgba(6,20,60,.28);
+  }
+  .demo .tagx{font-size:10px;color:rgba(255,255,255,.45);padding:0 5px;letter-spacing:.5px;}
+  .demo button{
+    height:26px;padding:0 10px;border-radius:6px;font-size:11px;color:rgba(255,255,255,.82);
+    background:rgba(255,255,255,.1);transition:.18s;
+  }
+  .demo button:hover{background:rgba(255,255,255,.18);}
+  .demo button.on{background:#00b89e;color:#fff;font-weight:600;}
+
+  /* ---------------- 响应式 ---------------- */
+  @media(max-width:760px){
+    body{overflow:auto;}
+    .panel{padding:26px 20px 20px;border-radius:16px;}
+    .head h1{font-size:19px;}
+    .link{width:64px;}
+    .steps li{font-size:12.5px;padding:9px 0;}
+    .top-right{display:none;}
+  }
+  @media(max-height:700px){
+    .bindviz{margin-bottom:14px;transform:scale(.92);}
+    .panel{padding:26px 32px 20px;}
+    .steps li{padding:8px 0;}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *,*::after,*::before{animation:none!important;transition:none!important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <img class="logo-img" src="data:image/png;base64,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" alt="桂教通 GUIJIAOTONG">
+    <span>可信身份统一认证</span>
+  </div>
+</div>
+<div class="top-right">
+  <a href="trust.html">返回登录</a>
+  <a href="javascript:void(0)">帮助中心</a>
+</div>
+
+<div class="stage">
+  <div class="panel" id="panel" role="status" aria-live="polite">
+
+    <!-- 选择绑定机构（未绑定时的第一步） -->
+    <div class="choose-view" id="chooseView">
+      <div class="top">
+        <span class="verified">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8 19.4 5.6v5.8c0 4.9-3.1 8.1-7.4 9.5-4.3-1.4-7.4-4.6-7.4-9.5V5.6L12 2.8Z"/><path d="m9.1 11.9 2.2 2.2 3.7-4"/></svg>
+          <span id="verifyTx">可信身份已核验通过</span>
+        </span>
+      </div>
+      <div class="head">
+        <h1 id="chooseTitle">选择绑定的机构</h1>
+        <p id="chooseDesc">你在桂教通平台关联了多个机构，请选择本次绑定的一项<br>一个平台仅可绑定一个机构，之后可在「账号信息 → 绑定管理」中切换</p>
+      </div>
+
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m16.4 16.4 4 4"/></svg>
+        <input id="orgSearch" type="text" placeholder="搜索机构名称" autocomplete="off" aria-label="搜索机构">
+        <button class="clr" id="orgClear" type="button" aria-label="清空" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+
+      <div class="list-meta">
+        <span id="orgCount">共 10 个机构</span>
+        <span class="hint">当前仅显示与你身份关联的机构</span>
+      </div>
+
+      <div class="list-wrap" id="listWrap">
+        <div class="org-list" id="orgList" role="radiogroup" aria-label="绑定机构"></div>
+      </div>
+
+      <div class="no-res" id="noRes" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m16.4 16.4 4 4"/></svg>
+        <b>没有匹配的机构</b>
+        <span>换个关键词试试，或联系学校管理员确认机构分配</span>
+      </div>
+
+      <div class="pick-bar" id="pickBar">
+        <span class="pk-ic">
+          <svg class="i-empty" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 8.4v4.4"/><circle cx="12" cy="15.9" r=".9" fill="currentColor" stroke="none"/></svg>
+          <svg class="i-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6"/></svg>
+        </span>
+        <span class="pk-tx" id="pickTx">尚未选择，请在列表中选择一项</span>
+      </div>
+
+      <div class="choose-acts">
+        <button class="btn-lite2" id="btnCancelChoose" type="button">取消</button>
+        <button class="btn-go" id="btnConfirmChoose" type="button" disabled>
+          <span id="chooseOkTx">确认并继续绑定</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M12.5 6.2 18.6 12l-6.1 5.8"/></svg>
+        </button>
+      </div>
+
+      <p class="foot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.2"/><path d="M12 10.6v6"/><circle cx="12" cy="7.9" r="1" fill="currentColor" stroke="none"/></svg>
+        机构由学校管理员在桂教通平台分配，若列表与实际情况不符，请联系管理员。
+      </p>
+    </div>
+
+    <!-- 进行中 -->
+    <div class="busy-view">
+      <div class="bindviz" aria-hidden="true">
+        <div class="node trust">
+          <span class="ring">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.6 20 5.6v6.2c0 5.3-3.4 8.7-8 10.2-4.6-1.5-8-4.9-8-10.2V5.6l8-3Z"/><path d="M8.9 11.9 11.3 14.3 15.6 9.6"/></svg>
+          </span>
+          <span class="lb" id="vLeftLb">可信身份</span>
+          <span class="sb" id="vTrust">已认证</span>
+        </div>
+
+        <div class="link" id="vLink">
+          <span class="rail"></span>
+          <span class="fill" id="vFill"></span>
+          <span class="pulse"></span>
+          <span class="okdot">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6"/></svg>
+          </span>
+        </div>
+
+        <div class="node portal">
+          <span class="ring">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.4h16"/><path d="M6.4 19.4V9.6l5.6-3.4 5.6 3.4v9.8"/><path d="M10.2 19.4v-4.2h3.6v4.2"/></svg>
+          </span>
+          <span class="lb" id="vRightLb">桂教通账号</span>
+          <span class="sb" id="vPortal">匹配中…</span>
+        </div>
+      </div>
+
+      <div class="head">
+        <h1 id="vTitle">正在建立身份绑定</h1>
+        <p id="vDesc">首次通过可信登录，正在把可信身份与你的桂教通账号关联<br>仅建立身份对应关系，不会改变原有机构与权限</p>
+      </div>
+
+      <div class="prog">
+        <div class="bar"><i id="vBar"></i></div>
+        <div class="meta">
+          <span id="vStage">可信身份核验</span>
+          <b><span id="vPct">0</span>%</b>
+        </div>
+      </div>
+
+      <ul class="steps" id="vSteps">
+        <li data-step="1">
+          <span class="dot"><span class="no">1</span><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6"/></svg></span>
+          <span class="st">可信身份核验</span><span class="sx">等待中</span>
+        </li>
+        <li data-step="2">
+          <span class="dot"><span class="no">2</span><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6"/></svg></span>
+          <span class="st">匹配桂教通账号</span><span class="sx">等待中</span>
+        </li>
+        <li data-step="3">
+          <span class="dot"><span class="no">3</span><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6"/></svg></span>
+          <span class="st">建立人员绑定关系</span><span class="sx">等待中</span>
+        </li>
+        <li data-step="4">
+          <span class="dot"><span class="no">4</span><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6"/></svg></span>
+          <span class="st">同步机构与权限</span><span class="sx">等待中</span>
+        </li>
+      </ul>
+
+      <!-- 手机号在桂教通无账号时：系统自动建档（社会群体 / 社会机构·可信登录） -->
+      <div class="newacc" id="newAcc" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.6 20.2c.7-3.6 3.8-5.7 7.4-5.7s6.7 2.1 7.4 5.7"/></svg>
+        <div>
+          <b>未查到桂教通账号，已为你自动创建</b>
+          身份 <em>社会群体</em> · 机构 <em>社会机构</em> · 部门 <em>可信登录</em>
+        </div>
+      </div>
+
+      <p class="foot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.2"/><path d="M12 10.6v6"/><circle cx="12" cy="7.9" r="1" fill="currentColor" stroke="none"/></svg>
+        绑定关系仅用于身份对应，不改变你在桂教通已有的机构与权限。请勿关闭本页面。
+      </p>
+    </div>
+
+    <!-- 成功 -->
+    <div class="done-view">
+      <div class="ok-ring">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6"/></svg>
+      </div>
+      <h2 id="dTitle">绑定成功</h2>
+      <p class="desc"><span id="dDesc">可信身份已与桂教通账号建立绑定</span><br><b id="dAcc"></b></p>
+      <a class="enter" href="portal-harmony/index.html">
+        正在进入桂教通平台<span class="dots"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M12.5 6.2 18.6 12l-6.1 5.8"/></svg>
+      </a>
+      <p class="will">即将自动跳转 · 若未跳转请 <a href="portal-harmony/index.html">点此手动进入</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- 演示条 -->
+<div class="demo">
+  <span class="tagx">演示</span>
+  <button id="mFirst" class="on">首次登录 · 已有账号</button>
+  <button id="mNew">首次登录 · 无账号</button>
+  <button id="mBound">已绑定 · 静默登录</button>
+</div>
+
+<script>
+  /* from=trust：可信登录页发起（未登录 → 验手机号）
+     from=cert ：已登录用户在门户点「可信认证」发起（账号已存在，只判定是否已绑可信平台）
+     两者共用同一套绑定判定：未绑定 → 选机构并绑定；已绑定 → 静默登录 */
+  const qs = new URLSearchParams(location.search);
+  const IS_CERT = qs.get('from') === 'cert';
+  const PORTAL = 'portal-harmony/index.html?login=trust';
+  const LOGIN  = IS_CERT ? 'portal-harmony/index.html?login=pwd' : 'trust.html';
+  const STEP_MS = 620;
+
+  const panel  = document.getElementById('panel');
+  const vTitle = document.getElementById('vTitle');
+  const vDesc  = document.getElementById('vDesc');
+  const vBar   = document.getElementById('vBar');
+  const vPct   = document.getElementById('vPct');
+  const vStage = document.getElementById('vStage');
+  const vLink  = document.getElementById('vLink');
+  const vFill  = document.getElementById('vFill');
+  const vSteps = document.getElementById('vSteps');
+  const vPortal= document.getElementById('vPortal');
+  const vTrust = document.getElementById('vTrust');
+  const dTitle = document.getElementById('dTitle');
+  const dDesc  = document.getElementById('dDesc');
+  const dAcc   = document.getElementById('dAcc');
+  const newAccEl = document.getElementById('newAcc');
+
+  /* 手机号在桂教通无账号时，系统按此建档 */
+  const SOCIAL = { org:'社会机构 · 可信登录', short:'社会机构 · 可信登录' };
+
+  /* 账号来自跳转参数，做掩码展示 */
+  const rawAcc = (qs.get('acc') || '').trim();
+  const MASK_ACC = maskAcc(rawAcc) || '4501********1234';
+  function maskAcc(v){
+    if(!v) return '';
+    if(/^1\d{10}$/.test(v)) return v.slice(0,3) + '****' + v.slice(7);
+    if(v.length > 8) return v.slice(0,4) + new Array(Math.min(v.length - 8, 8) + 1).join('*') + v.slice(-4);
+    return v;
+  }
+
+  /* first = 已有账号（需选机构）；newacc = 无账号（自动建档）；bound = 已绑定（静默登录）
+     可信认证场景（from=cert）不存在「无账号」，强制回到 first */
+  const rawMode = qs.get('mode');
+  let mode = rawMode === 'bound' ? 'bound' : (rawMode === 'newacc' && !IS_CERT ? 'newacc' : 'first');
+  let token = 0;              // 中断令牌：Esc 取消后所有在途定时器失效
+  let timers = [];
+  function later(fn, ms){ const t = setTimeout(fn, ms); timers.push(t); return t; }
+  function clearAll(){ timers.forEach(clearTimeout); timers = []; }
+
+  function setPct(p, stageText){
+    vBar.style.width = p + '%';
+    vFill.style.width = p + '%';
+    vPct.textContent = Math.round(p);
+    if(stageText) vStage.textContent = stageText;
+  }
+
+  /* ---------------- 场景文案：可信登录 / 可信认证 ---------------- */
+  const T = IS_CERT ? {
+    verified:   '当前账号已登录',
+    chooseTitle:'选择可信认证的机构',
+    chooseDesc: '当前账号尚未与可信平台建立绑定，请选择本次认证的机构<br>一个账号仅可绑定一个机构，之后可在「账号信息 → 绑定管理」中切换',
+    leftLb:     '桂教通账号',
+    rightLb:    '可信平台',
+    leftSb:     '已登录',
+    steps:      ['账号身份校验','匹配可信平台绑定','建立可信认证关系','同步机构与权限'],
+    bindTitle:  '正在开通可信认证',
+    bindDesc:   '当前账号尚未与可信平台绑定，正在建立可信认证关系<br>仅建立身份对应关系，不会改变原有机构与权限',
+    boundTitle: '正在完成可信认证',
+    boundDesc:  '当前账号已与可信平台绑定，无需再次选择机构<br>正在校验认证关系并同步机构与权限',
+    boundOk:    '可信认证已完成，正在以可信认证方式进入桂教通平台',
+    step2Run:   '未查到认证记录，自动创建',
+    step2Done:  '未查到，已新建'
+  } : {
+    verified:   '可信身份已核验通过',
+    chooseTitle:'选择绑定的机构',
+    chooseDesc: '你在桂教通平台关联了多个机构，请选择本次绑定的一项<br>一个平台仅可绑定一个机构，之后可在「账号信息 → 绑定管理」中切换',
+    leftLb:     '可信身份',
+    rightLb:    '桂教通账号',
+    leftSb:     '已认证',
+    steps:      ['可信身份核验','匹配桂教通账号','建立人员绑定关系','同步机构与权限'],
+    bindTitle:  '正在建立身份绑定',
+    bindDesc:   '首次通过可信登录，正在把可信身份与你的桂教通账号关联<br>仅建立身份对应关系，不会改变原有机构与权限',
+    boundTitle: '正在静默登录',
+    boundDesc:  '你的可信身份已完成绑定，无需再次选择机构<br>正在校验绑定关系并同步机构与权限',
+    boundOk:    '欢迎回来，正在为你进入桂教通平台',
+    step2Run:   '未找到绑定关系，自动创建',
+    step2Done:  '未找到，已新建'
+  };
+
+  function applyScene(){
+    document.getElementById('verifyTx').textContent = T.verified;
+    document.getElementById('chooseTitle').textContent = T.chooseTitle;
+    document.getElementById('chooseDesc').innerHTML = T.chooseDesc;
+    document.getElementById('chooseOkTx').textContent = IS_CERT ? '确认并继续认证' : '确认并继续绑定';
+    document.getElementById('vLeftLb').textContent = T.leftLb;
+    document.getElementById('vRightLb').textContent = T.rightLb;
+    vSteps.querySelectorAll('li').forEach((li, i)=>{ li.querySelector('.st').textContent = T.steps[i]; });
+    vTrust.textContent = T.leftSb;
+    vStage.textContent = T.steps[0];
+  }
+  applyScene();
+
+  /* ---------------- 首次登录：4 步绑定 ---------------- */
+  /* autoNew = true 时走「手机号无桂教通账号 → 自动建档」分支 */
+  function runFirst(autoNew){
+    const my = ++token;
+    clearAll();
+    panel.classList.remove('ok');
+    vSteps.style.display = '';
+    vSteps.querySelectorAll('li').forEach(li=>{ li.className = ''; li.querySelector('.sx').textContent = '等待中'; });
+    newAccEl.hidden = true;
+    vLink.className = 'link';
+    vTrust.textContent = T.leftSb;
+    vPortal.textContent = '匹配中…';
+    vTitle.textContent = autoNew ? '正在为你开通桂教通账号' : T.bindTitle;
+    vDesc.innerHTML = autoNew
+      ? '该手机号在桂教通暂无对应账号，将按社会群体身份自动建档<br>账号归入「社会机构 · 可信登录」部门，无需手动选择机构'
+      : T.bindDesc;
+    setPct(0, T.steps[0]);
+
+    const target = autoNew ? SOCIAL : picked;
+    const tShort = target ? target.short : '桂教通账号';
+    const lis = [...vSteps.children];
+    lis[0].className = 'done';
+    lis[0].querySelector('.sx').textContent = '已完成';
+    setPct(25, T.steps[1]);
+    vLink.classList.add('run');
+
+    later(()=>{
+      if(my !== token) return;
+      lis[1].className = 'active';
+      lis[1].querySelector('.sx').textContent = autoNew ? '未查到账号，自动建档' : T.step2Run;
+      vPortal.textContent = '自动创建';
+    }, 260);
+
+    later(()=>{
+      if(my !== token) return;
+      lis[1].className = 'done';
+      lis[1].querySelector('.sx').textContent = autoNew ? '已建档（社会群体）' : T.step2Done;
+      if(autoNew) newAccEl.hidden = false;   // 建档完成后展示新账号明细
+      lis[2].className = 'active';
+      lis[2].querySelector('.sx').textContent = autoNew ? '写入「社会机构 · 可信登录」…' : '写入「' + tShort + '」…';
+      setPct(52, T.steps[2]);
+      vPortal.textContent = '建档中…';
+    }, 260 + STEP_MS);
+
+    later(()=>{
+      if(my !== token) return;
+      lis[2].className = 'done';
+      lis[2].querySelector('.sx').textContent = autoNew ? '账号已生成' : '绑定关系已建立';
+      lis[3].className = 'active';
+      lis[3].querySelector('.sx').textContent = autoNew ? '同步社会群体权限…' : '同步「' + tShort + '」权限…';
+      setPct(78, T.steps[3]);
+      vPortal.textContent = '已建档';
+    }, 260 + STEP_MS * 2);
+
+    later(()=>{
+      if(my !== token) return;
+      lis[3].className = 'done';
+      lis[3].querySelector('.sx').textContent = '已完成';
+      setPct(100, '绑定完成');
+      vLink.classList.remove('run');
+      vLink.classList.add('done');
+      finish(my,
+        autoNew ? '账号已开通并完成绑定' : (IS_CERT ? '可信认证成功' : '绑定成功'),
+        autoNew
+          ? '已按社会群体身份生成桂教通账号，归入「社会机构 · 可信登录」部门'
+          : (IS_CERT
+              ? '当前账号已与「' + tShort + '」建立可信认证关系，将以可信认证方式登录'
+              : '可信身份已与「' + tShort + '」建立绑定'));
+    }, 260 + STEP_MS * 3);
+  }
+
+  /* ---------------- 已绑定：静默登录，不再询问机构 ---------------- */
+  function runBound(){
+    const my = ++token;
+    clearAll();
+    panel.classList.remove('ok');
+    vSteps.style.display = 'none';
+    newAccEl.hidden = true;
+    vLink.className = 'link run';
+    vTrust.textContent = T.leftSb;
+    vPortal.textContent = '已绑定';
+    vTitle.textContent = T.boundTitle;
+    vDesc.innerHTML = T.boundDesc;
+    setPct(46, '校验已有绑定关系');
+
+    later(()=>{
+      if(my !== token) return;
+      setPct(100, '校验完成');
+      vLink.classList.remove('run');
+      vLink.classList.add('done');
+      finish(my, IS_CERT ? '可信认证成功' : '登录成功', T.boundOk);
+    }, 720);
+  }
+
+  function finish(my, title, desc){
+    later(()=>{
+      if(my !== token) return;
+      panel.classList.add('ok');
+      dTitle.textContent = title;
+      dDesc.textContent = desc;
+      dAcc.textContent = MASK_ACC;
+      later(()=>{ if(my !== token) return; location.href = PORTAL; }, 1600);
+    }, 340);
+  }
+
+  /* ---------------- 选择绑定机构 ---------------- */
+  /* 一个用户在桂教通可能关联多个机构，这里按真实场景给足数据量 */
+  const ORGS = [
+    { org:'中国东信 · 测试学校',      sub:'南宁市青秀区 · 基础教育 · 学校管理员已审核',   short:'测试学校' },
+    { org:'广西壮族自治区教育厅',      sub:'南宁市 · 省级教育行政部门 · 统一认证',        short:'自治区教育厅' },
+    { org:'南宁市第二中学',          sub:'南宁市青秀区 · 完全中学 · 学校管理员已审核',   short:'南宁二中' },
+    { org:'广西师范大学附属中学',      sub:'桂林市七星区 · 完全中学 · 学校管理员已审核',   short:'师大附中' },
+    { org:'南宁市第三中学',          sub:'南宁市西乡塘区 · 高级中学 · 学校管理员已审核', short:'南宁三中' },
+    { org:'柳州市铁一中学',          sub:'柳州市柳北区 · 完全中学 · 学校管理员已审核',   short:'柳铁一中' },
+    { org:'桂林市第十八中学',        sub:'桂林市象山区 · 完全中学 · 学校管理员已审核',   short:'桂林十八中' },
+    { org:'北海市第一中学',          sub:'北海市海城区 · 完全中学 · 学校管理员已审核',   short:'北海一中' },
+    { org:'玉林高级中学',            sub:'玉林市玉州区 · 高级中学 · 学校管理员已审核',   short:'玉林高中' },
+    { org:'梧州市第一中学',          sub:'梧州市万秀区 · 完全中学 · 学校管理员已审核',   short:'梧州一中' }
+  ];
+
+  const orgList      = document.getElementById('orgList');
+  const listWrap     = document.getElementById('listWrap');
+  const orgSearch    = document.getElementById('orgSearch');
+  const orgClear     = document.getElementById('orgClear');
+  const orgCount     = document.getElementById('orgCount');
+  const noResEl      = document.getElementById('noRes');
+  const pickBar      = document.getElementById('pickBar');
+  const pickTx       = document.getElementById('pickTx');
+  const btnConfirmChoose = document.getElementById('btnConfirmChoose');
+  let picked = null;
+
+  /* 渲染列表（优先匹配机构名，无命中时再退到区域等描述） */
+  function renderOrgs(){
+    const kw = orgSearch.value.trim().toLowerCase();
+    let hit = ORGS;
+    if(kw){
+      const byName = ORGS.filter(o => o.org.toLowerCase().indexOf(kw) >= 0);
+      hit = byName.length ? byName : ORGS.filter(o => o.sub.toLowerCase().indexOf(kw) >= 0);
+    }
+    orgList.innerHTML = hit.map(o => `
+      <button class="org-item" type="button" role="radio"
+        aria-checked="${picked && picked.org === o.org ? 'true' : 'false'}"
+        data-org="${o.org}" data-short="${o.short}">
+        <span class="rd"></span>
+        <span class="og-main">
+          <span class="og-name">${o.org}</span>
+          <span class="og-sub">${o.sub}</span>
+        </span>
+      </button>`).join('');
+    orgList.hidden = hit.length === 0;
+    noResEl.hidden = hit.length > 0;
+    orgCount.textContent = kw
+      ? '找到 ' + hit.length + ' 个匹配机构'
+      : '共 ' + ORGS.length + ' 个机构';
+    orgClear.hidden = !kw;
+    orgList.scrollTop = 0;
+    syncFade();
+  }
+
+  /* 滚动到底部时收起渐隐，避免误导 */
+  function syncFade(){
+    const atEnd = orgList.scrollTop + orgList.clientHeight >= orgList.scrollHeight - 2;
+    listWrap.classList.toggle('at-end', atEnd);
+  }
+  orgList.addEventListener('scroll', syncFade);
+  renderOrgs();
+
+  /* 选择状态同步到摘要条与确认按钮 */
+  function syncPick(){
+    if(picked){
+      pickBar.classList.add('on');
+      pickTx.textContent = '已选择：' + picked.org;
+      btnConfirmChoose.disabled = false;
+    }else{
+      pickBar.classList.remove('on');
+      pickTx.textContent = '尚未选择，请在列表中选择一项';
+      btnConfirmChoose.disabled = true;
+    }
+  }
+  syncPick();
+
+  orgList.addEventListener('click', e=>{
+    const item = e.target.closest('.org-item');
+    if(!item) return;
+    orgList.querySelectorAll('.org-item').forEach(x=>x.setAttribute('aria-checked', x===item ? 'true' : 'false'));
+    picked = { org: item.dataset.org, short: item.dataset.short };
+    syncPick();
+  });
+
+  orgSearch.addEventListener('input', renderOrgs);
+  orgClear.addEventListener('click', ()=>{
+    orgSearch.value = '';
+    renderOrgs();
+    orgSearch.focus();
+  });
+
+  btnConfirmChoose.addEventListener('click', ()=>{
+    if(!picked) return;
+    panel.classList.remove('choosing');
+    runFirst();
+  });
+  document.getElementById('btnCancelChoose').addEventListener('click', ()=>{
+    token++; clearAll(); location.href = LOGIN;
+  });
+
+  function run(){
+    if(mode === 'bound'){ panel.classList.remove('choosing'); runBound(); return; }
+    /* 手机号在桂教通无账号：不询问机构，直接按社会群体身份建档 */
+    if(mode === 'newacc'){ panel.classList.remove('choosing'); picked = null; runFirst(true); return; }
+    /* 已有账号：先由用户手动选择机构，选完再开始绑定 */
+    token++; clearAll();
+    panel.classList.remove('ok','choosing');
+    panel.classList.add('choosing');
+    picked = null;
+    orgSearch.value = '';
+    renderOrgs();
+    syncPick();
+  }
+
+  /* ---------------- 演示切换 ---------------- */
+  const bFirst = document.getElementById('mFirst');
+  const bNew   = document.getElementById('mNew');
+  const bBound = document.getElementById('mBound');
+  function syncDemo(){
+    bFirst.classList.toggle('on', mode === 'first');
+    bNew.classList.toggle('on', mode === 'newacc');
+    bBound.classList.toggle('on', mode === 'bound');
+  }
+  if(IS_CERT){
+    /* 可信认证由已登录账号发起，账号必然存在，不提供「无账号建档」分支 */
+    bNew.hidden = true;
+    bFirst.textContent = '未绑定 · 选择机构';
+    bBound.textContent = '已绑定 · 静默登录';
+  }
+  bFirst.addEventListener('click', ()=>{ mode = 'first';  syncDemo(); run(); });
+  bNew  .addEventListener('click', ()=>{ mode = 'newacc'; syncDemo(); run(); });
+  bBound.addEventListener('click', ()=>{ mode = 'bound';  syncDemo(); run(); });
+
+  /* Esc：原型里允许中途退出，回到登录页（令牌自增让在途定时器失效） */
+  document.addEventListener('keydown', e=>{
+    if(e.key === 'Escape'){ token++; clearAll(); location.href = LOGIN; }
+  });
+
+  syncDemo();
+  run();
+</script>
+</body>
+</html>
